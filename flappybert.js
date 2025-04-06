@@ -1,17 +1,15 @@
 // Board
-let board;
-// let boardWidth = 360; //pixels
-// let boardHeight = 640;
+let board;  //, background img is set in css file
 let boardWidth = 1080; //pixels
 let boardHeight = 640;
 let context; //used for drawing in the canvas
 
 // Bird / bert
-let bertWidth = 55;
-let bertHeight = 55;
+let bertWidth = 50;
+let bertHeight = 50;
 let bertX = boardWidth / 8;
 let bertY = boardHeight / 2;
-//let bertImg;
+
 let bertImgs = [];
 let bertImgsIndex = 0;
 
@@ -32,7 +30,7 @@ let pipeY = 0;
 let topPipeImg;
 let bottomPipeImg;
 
-// coins
+// coin
 let coinWidth = 80;
 let coinHeight = 80;
 let coinImg;
@@ -52,6 +50,12 @@ let gravity = 0.4;  // gravity
 // Game Variables
 let gameOver = false;
 let score = 0;
+let badEndCounter = 10; //after this reaches 0, a bad end happens
+let isNoGapInPipes = false;  // no space between pipes
+let pipeCrossed = 0;
+let isBadEnd = false;
+let badEnd = 0;
+let badEndStr = "";
 
 // Game Sounds
 let wingSound = new Audio("./sounds/sfx_wing.wav");
@@ -60,39 +64,23 @@ let backgroundMusic = new Audio("./sounds/bgm_mario.mp3");
 backgroundMusic.loop = true; //play music on repeat
 
 window.onload = function() {
-    //board = document.getElementById("board");
     board = document.getElementById("board");
     board.height = boardHeight;
     board.width = boardWidth;
     context = board.getContext("2d"); //used for drawing on the board
 
-    // //draw bert
-    // context.fillStyle = "green";
-    // context.fillRect(bert.x, bert.y, bert.width, bert.height);
-
-    //load images
-    // bertImg = new Image();
-    // bertImg.src = "./img/flappybert.png";
-    // //birdImg.onload = function() {
-    //     context.drawImage(bertImg, bert.x, bert.y, bert.width, bert.height);
-    // //}
-
     //load bert img animation
-    for (let i = 0; i < 2; i++) {  //3 is the total number of imgs used in the animation
-    //for (let i = 0; i < 4; i++) {  //4 is the total number of imgs used in the animation
+    for (let i = 0; i < 2; i++) {  //2 is the total number of imgs used in the animation
         let bertImg = new Image();
-        //bertImg.src = `./img/bertAnimation/flappybird${i}.png`;
         bertImg.src = `./img/bertAnimation/flappybert${i}.png`;
         bertImgs.push(bertImg);
     }
-
+    
+    //load images
     topPipeImg = new Image();
-    //topPipeImg.src = "./img/toppipe.png";
     topPipeImg.src = "./img/top-lamp.png";
     bottomPipeImg = new Image();
-    //bottomPipeImg.src = "./../bottompipe.png";
-    bottomPipeImg.src = "./img/bottom-coffee-mug-tower.png";
-    
+    bottomPipeImg.src = "./img/bottom-coffee-mug-tower.png";    
     coinImg = new Image();
     coinImg.src = "./img/bert_buck.png";
     
@@ -123,14 +111,12 @@ function update() {
     velocityY += gravity; //implement gravity
     // bert.y += velocityY;  no limit for the canvas when jumping
     bert.y = Math.max(bert.y + velocityY, -40); //apply gravity to current bert.y, limit the bert.y top of the canvas
-    //context.drawImage(bertImg, bert.x, bert.y, bert.width, bert.height);
     context.drawImage(bertImgs[bertImgsIndex], bert.x, bert.y, bert.width, bert.height);
-    // bertImgsIndex++; //increment to next frame
-    // bertImgsIndex %= bertImgs.length; // circle back with modulus, max frame is 4
-    // // 0 1 2 3 0 1 2 3 0 1 2 3.....
 
     // if bert goes under or above the canvas's height , its game over
     if (bert.y > boardHeight || bert.y < -30) {
+        gameOver = true;
+    } else if (score < -20) {
         gameOver = true;
     }
 
@@ -141,10 +127,11 @@ function update() {
 
         context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
 
-        //if bert passed the pipe, increase the score
+        //if bert passed the pipes, increase the score
         if (!pipe.passed && bert.x > pipe.x + pipe.width) {
             score += 0.5;  //since it passes 2 pipes at a time it would be 1 point per pass
             pipe.passed = true;
+            pipeCrossed += 0.5;
         }
 
         //detect collision and end game
@@ -161,8 +148,12 @@ function update() {
 
     //draw Score
     context.fillStyle = "white";  //font color
-    context.font = "55px sans-serif"; //font size and type
-    context.fillText(score, 105, 63); //variable with text, position on canvas x, y
+    context.font = "45px sans-serif"; //font size and type
+    context.fillText(score, 105, 63); //variable with text, position on canvas x, y    
+    context.fillText(`Luck ${badEndCounter}%`, 805, 63); //variable with text, position on canvas x, y
+    context.fillText(`Passed: ${pipeCrossed}`, 805, 105); //variable with text, position on canvas x, y
+    context.fillText(`Bad Luck: ${badEndStr}`, 10, 630); //variable with text, position on canvas x, y
+    
 
     // draw coin
     context.drawImage(coinImg, coin.x, coin.y, coin.width, coin.height);
@@ -177,8 +168,8 @@ function update() {
 
 function animateBert() {
     bertImgsIndex++; //increment to next frame
-    bertImgsIndex %= bertImgs.length; // circle back with modulus, max frame is 4
-    // // 0 1 2 3 0 1 2 3 0 1 2 3.....
+    bertImgsIndex %= bertImgs.length; // circle back with modulus, max frame is 1
+    // // 0 1 0 1 0 1....
 }
 
 
@@ -201,6 +192,10 @@ function placePipes() {
     }
 
     pipeArray.push(topPipe);
+
+    if (isNoGapInPipes) {
+        openingSpace = 1;
+    }
 
     let bottomPipe = {
         img : bottomPipeImg,
@@ -238,6 +233,59 @@ function jumpBert(e) {
             pipeArray = [];
             score = 0;
             gameOver = false;
+            badEndCounter = 40;
+            // game original settings
+            gravity = 0.4;
+            velocityY = -6;
+            isNoGapInPipes = false;
+            pipeCrossed = 0;
+            isBadEnd = false;
+            badEnd = 0;
+            badEndStr = "";
+            bert.height = 50;
+            bert.width = 50;
+        } else {
+            badEndCounter -= 1;
+        }
+
+
+        // ran out of luck, randomly select bad ending
+        if (badEndCounter < 1 && !isBadEnd) {
+            badEnd = getRandomIntInclusive(1,5);
+            isBadEnd = true;
+        }
+
+        if (isBadEnd) {
+
+            switch(badEnd) {
+                case 1:
+                    // no gravity
+                    gravity = 0;
+                    badEndStr = "No gravity.";
+                    break;
+                case 2:
+                    // jumping doesnt work anymore
+                    velocityY = 10;
+                    badEndStr = "No jump.";
+                    break;
+                case 3:
+                    // no space between pipes
+                    isNoGapInPipes = true;
+                    badEndStr = "No gap.";
+                    break;
+                case 4:
+                    // negative score
+                    score -= 2;
+                    badEndStr = "Neg score.";
+                    break;
+                case 5:
+                    // bert changes to random size
+                    let newSize = getRandomIntInclusive(45, 100);
+                    bert.height = newSize;
+                    bert.width = newSize;
+                    badEndStr = "Random size.";
+                    break;
+            }
         }
     }
 
@@ -250,4 +298,10 @@ function detectCollision(bertRect, pipeRect) {
            bertRect.x + bertRect.width > pipeRect.x &&
            bertRect.y < pipeRect.y + pipeRect.height &&
            bertRect.y + bertRect.height > pipeRect.y;
+}
+
+function getRandomIntInclusive(min, max) {
+    const minCeiled = Math.ceil(min);
+    const maxFloored = Math.floor(max);
+    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled); // The maximum is inclusive and the minimum is inclusive
 }
