@@ -293,7 +293,7 @@ function jumpLogic() {
             pipeArray = [];
             score = 0;
             gameOver = false;
-            badEndCounter = 40;
+            badEndCounter = getRandomIntInclusive(1, 100);;
             // game original settings
             gravity = 0.4;
             velocityY = -6;
