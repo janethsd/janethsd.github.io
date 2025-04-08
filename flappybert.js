@@ -57,6 +57,10 @@ let isBadEnd = false;
 let badEnd = 0;
 let badEndStr = "";
 
+let touchStartTime = 0;
+let touchEndTime = 0;
+const TAP_THRESHOLD = 300; // Max time in ms between touchstart and touchend to be considered a tap
+
 // Game Sounds
 let wingSound = new Audio("./sounds/sfx_wing.wav");
 let collisionSound = new Audio("./sounds/sfx_hit.wav");
@@ -93,6 +97,11 @@ window.onload = function() {
     setInterval(animateBert, 100);
     // event listener for jumping using key
     document.addEventListener("keydown", jumpBert);
+    // Resize canvas when the window is resized
+    //window.addEventListener('resize', resizeCanvas);
+
+    document.addEventListener("touchstart", touchStart);
+    document.addEventListener('touchend', touchEnd);
 
 }
 
@@ -215,7 +224,58 @@ function jumpBert(e) {
 
     //key press is space or arrowUp or "X"
     if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX") {
+        
+        jumpLogic();
 
+     }
+
+    
+}
+
+//create 2 rectangles comparing the positions and detecting the collision between the bert and the pipe
+function detectCollision(bertRect, pipeRect) {
+    return bertRect.x < pipeRect.x + pipeRect.width &&
+           bertRect.x + bertRect.width > pipeRect.x &&
+           bertRect.y < pipeRect.y + pipeRect.height &&
+           bertRect.y + bertRect.height > pipeRect.y;
+}
+
+function getRandomIntInclusive(min, max) {
+    const minCeiled = Math.ceil(min);
+    const maxFloored = Math.floor(max);
+    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled); // The maximum is inclusive and the minimum is inclusive
+}
+
+ // Function to resize the canvas
+ function resizeCanvas() {
+    let boardCanvas = context.getImageData(0,0,boardWidth, boardHeight); //to grab the whole canvas
+    canvas.width = window.innerWidth;  // Set canvas width to window's width
+    canvas.height = window.innerHeight; // Set canvas height to window's height
+    context.putImageData(boardCanvas, 0, 0); //to redraw it at the new scale.  // Redraw the content after resizing
+}
+
+function touchStart(event) {
+    touchStartTime = new Date().getTime(); // Store the time when touch starts
+    event.preventDefault(); // Prevent default behavior (like scrolling)
+}
+
+function touchEnd(event) {
+    touchEndTime = new Date().getTime(); // Store the time when touch ends
+
+    const touchDuration = touchEndTime - touchStartTime;
+
+    // If the touch duration is below the threshold (e.g., 300ms), consider it a tap
+    if (touchDuration <= TAP_THRESHOLD) {
+        console.log("Tap detected anywhere on the screen!");
+        jumpLogic();
+    }
+
+    event.preventDefault(); // Prevent default behavior on touch end
+}
+
+
+function jumpLogic() {
+    
         // Game music
         if (backgroundMusic.paused) {
             backgroundMusic.play();
@@ -287,21 +347,4 @@ function jumpBert(e) {
                     break;
             }
         }
-    }
-
-    
-}
-
-//create 2 rectangles comparing the positions and detecting the collision between the bert and the pipe
-function detectCollision(bertRect, pipeRect) {
-    return bertRect.x < pipeRect.x + pipeRect.width &&
-           bertRect.x + bertRect.width > pipeRect.x &&
-           bertRect.y < pipeRect.y + pipeRect.height &&
-           bertRect.y + bertRect.height > pipeRect.y;
-}
-
-function getRandomIntInclusive(min, max) {
-    const minCeiled = Math.ceil(min);
-    const maxFloored = Math.floor(max);
-    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled); // The maximum is inclusive and the minimum is inclusive
 }
